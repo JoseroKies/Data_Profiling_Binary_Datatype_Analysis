@@ -101,7 +101,7 @@ def check_datatype_of_string(string):
             return "string"
 
 
-# get tokens from a string for jaccard
+# get tokens from a string for jaccard similarity
 def get_ngram_tokens(text, case_sensitive, n):
     tokens = set()
     for i in range(0, len(text)):
@@ -127,4 +127,4 @@ def sim_jaccard(s1, s2, case_sensitive, token_len):
 
 
 
-#process_csv_files('C:/Users/kgmai/Documents/Uni/DI_Sem/work_data')
+process_csv_files('C:/Users/kgmai/Documents/Uni/DI_Sem/work_data')

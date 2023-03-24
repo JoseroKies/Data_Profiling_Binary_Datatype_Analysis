@@ -1,4 +1,24 @@
 import csv
+import matplotlib.pyplot as plt
+
+"""
+This function is reading the csv table for binary candidates at the given filepath and dumps all rows 
+into a list. Attributes will be casted in their specific data type.
+IMPORTANT: attributes have to have a specific data type
+    attribute0: a tuple with two values in the form ('val1', 'val2')
+    attribute1: integer
+    attribute2: a tuple with two values in the form ('val1', 'val2')
+    attribute3: float
+    attribute4: bool (OPTIONAL)
+    attribute5: float (OPTIONAL)  
+    possible schemes:
+        (binary_candidate, count, datatypes, jaccard_similarity)
+        (binary_candidate, count, datatypes, jaccard_similarity, multiple_occurrence)
+        (binary_candidate, count, datatypes, jaccard_similarity, multiple_occurrence, final_score)
+        
+@param filepath: The filepath for the binary candidates csv table
+@return: A list with each row as a list of the csv table in the correct casted data type
+"""
 
 
 def read_csv_file(filepath):
@@ -24,6 +44,13 @@ def read_csv_file(filepath):
         return all_rows
 
 
+"""
+This function is casting a string in the form of "('val1', 'val2')" to an actual tuple ('val1', 'val2').
+@param s: The string which you want to cast.
+@return: The tuple casted from the string.
+"""
+
+
 def string_to_tuple(s):
     try:
         elements = s.strip('()').split("\', \'")
@@ -34,6 +61,18 @@ def string_to_tuple(s):
         elements = s.strip('()').split(", ")
         elements = [e.strip() for e in elements]
     return tuple(elements)
+
+
+"""
+This function needs a list created by read_csv_file(filepath) as input.
+It checks for multiple occurrences. If one of the two elements of the first value of each list in the input list 
+occurs in an other list from the input list a True will be appended to the current list, else False.
+At the end the modified input list will be saved as a csv table with the scheme
+Input_scheme:  (binary_candidate, count, datatypes, jaccard_similarity)
+Output_scheme: (binary_candidate, count, datatypes, jaccard_similarity, multiple_occurrence)
+
+@:param all_bin_candidates: The input list (created by read_csv_file(filepath))
+"""
 
 
 def analyse_bin_candidates(all_bin_candidates):
@@ -57,8 +96,25 @@ def analyse_bin_candidates(all_bin_candidates):
             f.write(res_str + "\n")
 
 
-def compute_binary_probability(bin_value_canditate_analysis_path, weighting, considerNull, useSpecialFilter):
-    abc = read_csv_file(bin_value_canditate_analysis_path)
+"""
+This function creates a weighted final_score for each binary_candidate, calculated by the four given values 
+count, datatypes, jaccard_similarity, multiple_occurrence
+Input-scheme: (binary_candidate, count, datatypes, jaccard_similarity, multiple_occurrence)
+Output-scheme: (binary_candidate, count, datatypes, jaccard_similarity, multiple_occurrence, final_score)
+
+@param bin_value_candidate_analysis_path: The path of binary candidate csv table with the scheme (binary_candidate, 
+count, datatypes, jaccard_similarity, multiple_occurrence, final_score)
+@param weighting: A list with four fload values [v1:count, v2:datatypes, v3:jaccard_similarity, v4:multiple_occurrence]
+corresponding to the weights of the four parameters
+@param considerNull: A bool value if you want to consider candidates which include "" as a value.
+If True: such candidates will have a final_score of 0
+@param useSpecialFilter: A bool value if you want to have some special filters or not.
+@return: Returns a list corresponding to the output csv table sorted by the final score
+"""
+
+
+def compute_binary_probability(bin_value_candidate_analysis_path, weighting, considerNull, useSpecialFilter):
+    abc = read_csv_file(bin_value_candidate_analysis_path)
     MAX_COUNT = abc[0][1]
     for v in abc:
         if not considerNull and "" in v[0]:
@@ -116,39 +172,48 @@ def compute_binary_probability(bin_value_canditate_analysis_path, weighting, con
     return sorted_list
 
 
-# Achtung! sum(weighting) <= 13
+"""
+A helping function to weight the score properly for the 
+compute_binary_probability(bin_value_candidate_analysis_path, weighting, considerNull, useSpecialFilter) function.
+@param attribute1: count integer value of the binary candidates
+@param attribute2: (datatype[0]==datatype[1]) bool value of the binary candidates
+@param attribute3: jaccard_similarity float value of the binary candidates
+@param attribute4: multiple_occurrence bool value of the binary candidates
+@param weighting: A list corresponding to the weighting of the final score IMPORTANT: sum(weighting) <= 13
+@return: The weighted final score (value between 0-1)
+"""
+
+
 def calculate_score(attribute1: int, attribute2: bool, attribute3: float, attribute4: bool, weighting: list,
                     MAX_COUNT: int) -> float:
     SCORE_DIVISOR = 12
-    scaled_attribute1 = attribute1 / MAX_COUNT * weighting[0]  # Bonus für Attribut 1
-    scaled_attribute2 = 0.01 * weighting[1] if attribute2 else 0.0  # Bonus für Attribut 2
-    scaled_attribute3 = attribute3 * weighting[2]  # Bonus für Attribut 3
-    scaled_attribute4 = -0.01 * weighting[3] if attribute4 else 0.0  # Malus für Attribut 4
+    scaled_attribute1 = attribute1 / MAX_COUNT * weighting[0]               # Bonus for attribute 1
+    scaled_attribute2 = 0.01 * weighting[1] if attribute2 else 0.0          # Bonus for attribute 2
+    scaled_attribute3 = attribute3 * weighting[2]                           # Bonus for attribute 3
+    scaled_attribute4 = -0.01 * weighting[3] if attribute4 else 0.0         # Malus for attribute 4
     total = scaled_attribute1 + scaled_attribute2 + scaled_attribute3 + scaled_attribute4
     score = total / SCORE_DIVISOR
     return score
 
+
+"""
+This function computes the final rank for each binary candidate and adds it to the csv table.
+Input-scheme: (binary_candidate, count, datatypes, jaccard_similarity, multiple_occurrence, final_score)
+Output-scheme: (binary_candidate, count, datatypes, jaccard_similarity, multiple_occurrence, final_score, rank)
+"""
+
+
 def compute_final_rank(scored_candidates):
-
         rows = read_csv_file(scored_candidates)
-
-        # Zählen Sie die Anzahl der Zeilen in der CSV-Datei
         num_rows = sum(1 for row in rows)
-
-
         c = num_rows
-        # Öffnen Sie die CSV-Datei zum Schreiben
         with open('ranked_' + scored_candidates, 'w', newline='', encoding='utf-8') as f:
-            # Schleife durch jede Zeile der CSV-Datei
             for row in rows:
                 if c == num_rows:
                     f.write("binary_candidate\tcount\tdatatypes\tjaccard_similarity\tmultiple_occurrence\tfinal_score\trank\n")
                     c = c-1
                     continue
-                # Berechnen Sie den Wert für jede Zeile
                 value = c / num_rows
-
-
                 row_s = ""
                 for r in row:
                     row_s = row_s + str(r) + "\t"
@@ -156,10 +221,29 @@ def compute_final_rank(scored_candidates):
                 f.write(row_s)
                 c = c - 1
 
-print(calculate_score(316322, True, 0, False, [10, 1, 0.1, 0.1], 316322))
-print(calculate_score(6322, False, 0, True, [10, 1, 0.1, 0.01], 316322))
-print(calculate_score(3000, True, 1, False, [10, 1, 0.1, 0.01], 316322))
+
+"""
+plot_count() is plotting the count attribute of bin_value_canditate_analysis.csv
+"""
+
+
+def plot_count():
+    cs = read_csv_file("bin_value_canditate_analysis.csv")
+    v = []
+    sum = 0
+    for i in reversed(range(0, len(cs))):
+        v.append(cs[i][1])
+        sum = sum+cs[i][1]
+    print(sum)
+    x = range(len(v))
+    y = v
+    plt.plot(x, y, linewidth=5)
+    plt.show()
+
+
 
 # compute_count_graph(read_csv_file("bin_value_canditate_analysis.csv"))
-#l = compute_binary_probability("bin_value_canditate_analysis_V2 (sorted by count) [added multiple occurrence].csv", [10, 1, 0.1, 0.1], False, True)
-compute_final_rank("bin_value_canditate_analysis_V4 (sorted by score) [count=10, type=1, sim=0.1, multiple=0.1].csv")
+# analyse_bin_candidates(read_csv_file("bin_value_canditate_analysis.csv"))
+# compute_binary_probability("bin_value_canditate_analysis_V2 (sorted by count) [added multiple occurrence].csv", [10, 1, 0.1, 0.1], False, True)
+# compute_final_rank("bin_value_canditate_analysis_V4 (sorted by score) [count=10, type=1, sim=0.1, multiple=0.1].csv")
+#plot_count()
